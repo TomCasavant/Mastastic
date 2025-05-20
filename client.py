@@ -9,6 +9,8 @@ from lxml.html import fromstring
 from meshbot.command_registry import CommandRegistry
 from interfaces.messaging_interface import SerialMessagingInterface
 
+MESHTASTIC_CHANNEL = 2 # TODO: Move to config file
+
 class MastodonClient:
     """Handles Mastodon API interactions."""
     def __init__(self):
@@ -80,7 +82,7 @@ class NotificationListener(StreamListener):
         print(f"[Mastodon] Notification: {notification.type} from {notification.account.acct}")
         text_notification = self.build_notification(notification)
         try:
-            self.interface.sendText(text_notification, channelIndex=2)
+            self.interface.sendText(text_notification, channelIndex=MESHTASTIC_CHANNEL)
         except Exception as e:
             print(f"Error sending notification to mesh: {e}")
 
@@ -118,7 +120,7 @@ class MeshtasticBot:
         if self.awaiting_oauth:
             self.mastodon_client.mastodon.log_in(code=text, to_file='meshtastic_usercred.secret')
             self.awaiting_oauth = False
-            self.interface.sendText("Login successful!", channelIndex=2)
+            self.interface.sendText("Login successful!", channelIndex=MESHTASTIC_CHANNEL)
             self.run_mastodon_stream()
             return
         elif text.startswith("!"):
@@ -129,7 +131,7 @@ class MeshtasticBot:
 
     def on_connection(self, interface, topic=pub.AUTO_TOPIC):
         print("Connected to Meshtastic device")
-        interface.sendText("Connected to Mesh!", channelIndex=2)
+        interface.sendText("Connected to Mesh!", channelIndex=MESHTASTIC_CHANNEL)
 
     def setup_commands(self):
     
@@ -143,12 +145,12 @@ class MeshtasticBot:
                     help_text = f"Command: {command_name}\n"
                     help_text += f"Help: {command['help']}\n"
                     help_text += f"Example: {command['example']}"
-                    self.interface.sendText(help_text, channelIndex=2)
+                    self.interface.sendText(help_text, channelIndex=MESHTASTIC_CHANNEL)
                     return
                 else:
-                    self.interface.sendText(f"Command '{command_name}' not found.", channelIndex=2)
+                    self.interface.sendText(f"Command '{command_name}' not found.", channelIndex=MESHTASTIC_CHANNEL)
             command_list = "Available commands: " + ", ".join(self.registry.commands.keys())
-            self.interface.sendText(command_list, channelIndex=2)
+            self.interface.sendText(command_list, channelIndex=MESHTASTIC_CHANNEL)
 
         @self.registry.register('post', help_message='Post to Mastodon', example='!post Hello World')
         def post_command(*args):
@@ -158,19 +160,19 @@ class MeshtasticBot:
         @self.registry.register('login', help_message='Login to a Mastodon instance', example='!login tomkahe.com')
         def login_command(*args):
             if len(args) != 1:
-                self.interface.sendText("Usage: !login <instance>", channelIndex=2)
+                self.interface.sendText("Usage: !login <instance>", channelIndex=MESHTASTIC_CHANNEL)
                 return
             instance = args[0]
             auth_url = self.mastodon_client.login(instance)
-            self.interface.sendText(f"{auth_url}", channelIndex=2)
+            self.interface.sendText(f"{auth_url}", channelIndex=MESHTASTIC_CHANNEL)
             # Auth_URL might be too long for the mesh sometimes, not sure if there's any better way of handling that considering we only have 230 chars
-            self.interface.sendText(f"Enter your OAuth code:", channelIndex=2)
+            self.interface.sendText(f"Enter your OAuth code:", channelIndex=MESHTASTIC_CHANNEL)
             # TODO: Not sure if this is the best way to handle this? i.e. is there/should we wait for a response here instead of using a variable state?
             self.awaiting_oauth = True
 
         @self.registry.register('ping', example='!ping')
         def ping_command(*args):
-            self.interface.sendText("pong", channelIndex=2)
+            self.interface.sendText("pong", channelIndex=MESHTASTIC_CHANNEL)
 
 
 if __name__ == "__main__":
