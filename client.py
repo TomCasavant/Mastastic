@@ -1,13 +1,11 @@
-import threading
 import os
+import threading
 
-import meshtastic
-import meshtastic.serial_interface
-from pubsub import pub
-from mastodon import Mastodon, StreamListener
 from lxml.html import fromstring
+from mastodon import Mastodon, StreamListener
+from pubsub import pub
+
 from meshbot.mesh_bot import MeshBot
-from interfaces.messaging_interface import SerialMessagingInterface
 
 MESHTASTIC_CHANNEL = 2  # TODO: Move to config file
 
@@ -130,7 +128,6 @@ class MastodonClientBot(MeshBot):
         self.send_text("Connected to Mesh!", channelIndex=MESHTASTIC_CHANNEL)
 
     def register_custom_commands(self):
-
         @self.registry.register(
             "post", help_message="Post to Mastodon", example="!post Hello World"
         )
@@ -153,7 +150,7 @@ class MastodonClientBot(MeshBot):
             auth_url = self.mastodon_client.login(instance)
             self.send_text(f"{auth_url}", channelIndex=MESHTASTIC_CHANNEL)
             # Auth_URL might be too long for the mesh sometimes, not sure if there's any better way of handling that considering we only have 230 chars
-            self.send_text(f"Enter your OAuth code:", channelIndex=MESHTASTIC_CHANNEL)
+            self.send_text("Enter your OAuth code:", channelIndex=MESHTASTIC_CHANNEL)
             self.wait_for_next_message(self.handle_oauth_code)
 
         @self.registry.register("ping", example="!ping")

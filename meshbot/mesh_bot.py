@@ -1,6 +1,7 @@
-from meshbot.command_registry import CommandRegistry
 from pubsub import pub
+
 from interfaces.messaging_interface import SerialMessagingInterface
+from meshbot.command_registry import CommandRegistry
 
 
 class MeshBot:
@@ -47,9 +48,7 @@ class MeshBot:
 
     def start_interface(self):
         try:
-            interface = (
-                SerialMessagingInterface()
-            )  # TODO: Allow bot to specify if we want SerialMessaging or BLE interface, although technically allowed now that we can pass in an interface in constructor
+            interface = SerialMessagingInterface()  # TODO: Allow bot to specify if we want SerialMessaging or BLE interface, although technically allowed now that we can pass in an interface in constructor
             pub.subscribe(self.on_receive, "meshtastic.receive.text")
             pub.subscribe(self.on_connection, "meshtastic.connection.established")
             # TODO: Look into other potential subscriptions a bot could utilize (i.e. sending a message when user information is retceived?)
