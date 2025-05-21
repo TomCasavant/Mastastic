@@ -6,7 +6,7 @@ import meshtastic.serial_interface
 from pubsub import pub
 from mastodon import Mastodon, StreamListener
 from lxml.html import fromstring
-from meshbot.command_registry import CommandRegistry
+from meshbot.mesh_bot import MeshBot
 from interfaces.messaging_interface import SerialMessagingInterface
 
 MESHTASTIC_CHANNEL = 2 # TODO: Move to config file
@@ -52,8 +52,8 @@ class MastodonClient:
 
 class NotificationListener(StreamListener):
     """Listen to Mastodon notifications."""
-    def __init__(self, interface):
-        self.interface = interface
+    def __init__(self, bot):
+        self.bot = bot
 
     def clean_text(self, text):
         # Remove HTML tags and decode HTML entities
@@ -82,75 +82,39 @@ class NotificationListener(StreamListener):
         print(f"[Mastodon] Notification: {notification.type} from {notification.account.acct}")
         text_notification = self.build_notification(notification)
         try:
-            self.interface.sendText(text_notification, channelIndex=MESHTASTIC_CHANNEL)
+            self.bot.send_text(text_notification, channelIndex=MESHTASTIC_CHANNEL)
         except Exception as e:
             print(f"Error sending notification to mesh: {e}")
 
-class MeshtasticBot:
-    def __init__(self):
-        self.registry = CommandRegistry()
+class MastodonClientBot(MeshBot):
+    def __init__(self, interface=None):
         self.mastodon_client = MastodonClient()
-        self.awaiting_oauth = False
-        self.setup_commands()
-        self.interface = self.start_interface()
+        super().__init__(interface=None, default_channel=MESHTASTIC_CHANNEL)
         self.run_mastodon_stream()
 
     def run_mastodon_stream(self):
         mastodon = self.mastodon_client.mastodon
         if mastodon:
-            listener = NotificationListener(self.interface)
+            listener = NotificationListener(self)
             try:
                 threading.Thread(target=mastodon.stream_user, args=(listener,), daemon=True).start()
                 print("Mastodon stream listener started in a separate thread.")
             except Exception as e:
                 print(f"Error in Mastodon stream: {e}")
 
-    def start_interface(self):
-        try:
-            interface = SerialMessagingInterface()
-            pub.subscribe(self.on_receive, "meshtastic.receive.text")
-            pub.subscribe(self.on_connection, "meshtastic.connection.established")
-            return interface
-        except Exception as e:
-            print(f"Error starting interface: {e}")
-            return None
-
-    def on_receive(self, packet, interface):
-        text = packet['decoded'].get('text', '')
-        if self.awaiting_oauth:
-            self.mastodon_client.mastodon.log_in(code=text, to_file='meshtastic_usercred.secret')
-            self.awaiting_oauth = False
-            self.interface.sendText("Login successful!", channelIndex=MESHTASTIC_CHANNEL)
-            self.run_mastodon_stream()
-            return
-        elif text.startswith("!"):
-            parts = text[1:].split(" ", 1)
-            command_name = parts[0]
-            args = parts[1:] if len(parts) > 1 else []
-            self.registry.execute(command_name, *args)
+    def handle_oauth_code(self, text):
+         try:
+             self.mastodon_client.mastodon.log_in(code=text, to_file='meshtastic_usercred.secret')
+             self.send_text("Login successful.", channelIndex=MESHTASTIC_CHANNEL)
+             self.run_mastodon_stream()
+         except Exception as e:
+             self.send_text(f"OAuth failed: {e}", channelIndex=MESHTASTIC_CHANNEL)
 
     def on_connection(self, interface, topic=pub.AUTO_TOPIC):
         print("Connected to Meshtastic device")
-        interface.sendText("Connected to Mesh!", channelIndex=MESHTASTIC_CHANNEL)
+        self.send_text("Connected to Mesh!", channelIndex=MESHTASTIC_CHANNEL)
 
-    def setup_commands(self):
-    
-        @self.registry.register('help', help_message='List available commands', example='!help')
-        def help_command(*args):
-            # If command provided show help for that command
-            if args:
-                command_name = args[0]
-                command = self.registry.commands.get(command_name)
-                if command:
-                    help_text = f"Command: {command_name}\n"
-                    help_text += f"Help: {command['help']}\n"
-                    help_text += f"Example: {command['example']}"
-                    self.interface.sendText(help_text, channelIndex=MESHTASTIC_CHANNEL)
-                    return
-                else:
-                    self.interface.sendText(f"Command '{command_name}' not found.", channelIndex=MESHTASTIC_CHANNEL)
-            command_list = "Available commands: " + ", ".join(self.registry.commands.keys())
-            self.interface.sendText(command_list, channelIndex=MESHTASTIC_CHANNEL)
+    def register_custom_commands(self):
 
         @self.registry.register('post', help_message='Post to Mastodon', example='!post Hello World')
         def post_command(*args):
@@ -164,17 +128,16 @@ class MeshtasticBot:
                 return
             instance = args[0]
             auth_url = self.mastodon_client.login(instance)
-            self.interface.sendText(f"{auth_url}", channelIndex=MESHTASTIC_CHANNEL)
+            self.send_text(f"{auth_url}", channelIndex=MESHTASTIC_CHANNEL)
             # Auth_URL might be too long for the mesh sometimes, not sure if there's any better way of handling that considering we only have 230 chars
-            self.interface.sendText(f"Enter your OAuth code:", channelIndex=MESHTASTIC_CHANNEL)
-            # TODO: Not sure if this is the best way to handle this? i.e. is there/should we wait for a response here instead of using a variable state?
-            self.awaiting_oauth = True
+            self.send_text(f"Enter your OAuth code:", channelIndex=MESHTASTIC_CHANNEL)
+            self.wait_for_next_message(self.handle_oauth_code)
 
         @self.registry.register('ping', example='!ping')
         def ping_command(*args):
-            self.interface.sendText("pong", channelIndex=MESHTASTIC_CHANNEL)
+            self.send_text("pong", channelIndex=MESHTASTIC_CHANNEL)
 
 
 if __name__ == "__main__":
-    bot = MeshtasticBot()
+    bot = MastodonClientBot()
     input("Press Enter to exit...")
