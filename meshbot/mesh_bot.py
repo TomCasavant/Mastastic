@@ -2,6 +2,7 @@ from meshbot.command_registry import CommandRegistry
 from pubsub import pub
 from interfaces.messaging_interface import SerialMessagingInterface
 
+
 class MeshBot:
     def __init__(self, interface=None, default_channel=0):
         self.default_channel = default_channel
@@ -18,7 +19,9 @@ class MeshBot:
             self.interface.sendText(text, channelIndex=channelIndex)
 
     def setup_commands(self):
-        @self.registry.register('help', help_message='List available commands', example='!help')
+        @self.registry.register(
+            "help", help_message="List available commands", example="!help"
+        )
         def help_command(*args):
             # If command provided show help for that command
             if args:
@@ -31,15 +34,22 @@ class MeshBot:
                     self.send_text(help_text, channelIndex=self.default_channel)
                     return
                 else:
-                    self.send_text(f"Command '{command_name}' not found.", channelIndex=self.default_channel)
-            command_list = "Available commands: " + ", ".join(self.registry.commands.keys())
+                    self.send_text(
+                        f"Command '{command_name}' not found.",
+                        channelIndex=self.default_channel,
+                    )
+            command_list = "Available commands: " + ", ".join(
+                self.registry.commands.keys()
+            )
             self.send_text(command_list, channelIndex=self.default_channel)
 
         self.register_custom_commands()
 
     def start_interface(self):
         try:
-            interface = SerialMessagingInterface() # TODO: Allow bot to specify if we want SerialMessaging or BLE interface, although technically allowed now that we can pass in an interface in constructor
+            interface = (
+                SerialMessagingInterface()
+            )  # TODO: Allow bot to specify if we want SerialMessaging or BLE interface, although technically allowed now that we can pass in an interface in constructor
             pub.subscribe(self.on_receive, "meshtastic.receive.text")
             pub.subscribe(self.on_connection, "meshtastic.connection.established")
             # TODO: Look into other potential subscriptions a bot could utilize (i.e. sending a message when user information is retceived?)
@@ -52,7 +62,7 @@ class MeshBot:
         print("Meshtastic connection established.")
 
     def on_receive(self, packet, interface):
-        text = packet['decoded'].get('text', '')
+        text = packet["decoded"].get("text", "")
         self.handle_message(text, packet)
 
     def handle_message(self, text, packet=None):
@@ -73,17 +83,17 @@ class MeshBot:
 
     # Hooks for child classes
     def on_command_executed(self, text, packet):
-        """ When a message is received and a command is executed """
+        """When a message is received and a command is executed"""
         pass
-    
+
     def on_unhandled_message(self, text, packet):
-        """ When a message is received but no command is executed """
+        """When a message is received but no command is executed"""
         pass
 
     def on_processed_message(self, text, packet):
-        """ When a message is received """
+        """When a message is received"""
         pass
 
     def register_custom_commands(self):
-        """ Override in child to add custom commands. """
+        """Override in child to add custom commands."""
         pass
