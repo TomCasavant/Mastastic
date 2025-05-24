@@ -151,7 +151,7 @@ class MastodonClientBot(MeshBot):
             self.send_text(f"{auth_url}", channelIndex=MESHTASTIC_CHANNEL)
             # Auth_URL might be too long for the mesh sometimes, not sure if there's any better way of handling that considering we only have 230 chars
             self.send_text("Enter your OAuth code:", channelIndex=MESHTASTIC_CHANNEL)
-            self.wait_for_next_message(self.handle_oauth_code)
+            self.awaiting_callback = self.handle_oauth_code
 
         @self.registry.register("ping", example="!ping")
         def ping_command(*args):
