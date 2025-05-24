@@ -1,3 +1,5 @@
+[Blog Post](https://tomcasavant.com/i-posted-to-mastodon-1-mile-away-from-an-internet-connection/)
+
 # Mastastic
 
 1. pip install -r requirements.txt
