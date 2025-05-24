@@ -32,7 +32,7 @@ class MastodonClient:
         try:
             # TODO: We shouldn't need to create the app every time we login?
             Mastodon.create_app(
-                "meshtastic",
+                "mastastic",
                 api_base_url=f"https://{instance}",
                 to_file="meshtastic_clientcred.secret",
             )
